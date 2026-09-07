@@ -3,10 +3,11 @@
 ## Notes: Horizontal bar showing your best Mythic+ key level per dungeon. Click to teleport.
 ## Notes-deDE: Horizontale Leiste mit deiner besten Mythic+ Stufe je Dungeon. Klick zum Hinteleportieren.
 ## Author: Tuluna
-## Version: 1.0.2
+## Version: 1.0.3
 ## SavedVariables: KeyBarDB
 ## X-License: MIT
 ## X-Category: Miscellaneous
 ## X-Wago-ID: qGYZOMNg
+## X-Curse-Project-ID: 1685683
 
 KeyBar.lua

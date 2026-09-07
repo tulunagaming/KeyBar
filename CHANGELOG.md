@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+Keine Funktionsaenderung. KeyBar erscheint ab jetzt auch auf CurseForge.
+
 ## 1.0.2
 
 Keine Funktionsaenderung. Korrektur der Release-Automatik.
