@@ -25,3 +25,6 @@ jobs:
         env:
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
           WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+          # Wird erst genutzt, sobald das Secret gesetzt und die
+          # X-Curse-Project-ID in der .toc eingetragen ist.
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
