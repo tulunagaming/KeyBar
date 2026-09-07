@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+Keine Funktionsaenderung. Erste ueber den BigWigs-Packager gebaute Version -
+ab hier entsteht das Paket automatisch aus dem Repository.
+
 ## 1.0.0
 
 Initial release.
