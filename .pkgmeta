@@ -1,0 +1,7 @@
+package-as: KeyBar
+
+enable-nolib-creation: no
+
+ignore:
+  - .github
+  - .pkgmeta

@@ -1,0 +1,13 @@
+# Changelog
+
+## 1.0.0
+
+Initial release.
+
+* Horizontal bar with one cell per dungeon of the current season
+* Best key level per dungeon, coloured by level, timed and overtime separated
+* Overall Mythic+ score
+* Click to teleport where the teleport is unlocked, with cooldown display
+* Tooltip with duration and dungeon score
+* Movable, scalable, sortable by level or name
+* English and German
