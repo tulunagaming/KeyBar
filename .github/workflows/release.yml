@@ -10,6 +10,11 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+
+    # Neue Repos geben dem automatischen GITHUB_TOKEN nur Leserechte; ohne
+    # das hier scheitert das Anlegen des GitHub-Releases mit 403.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:

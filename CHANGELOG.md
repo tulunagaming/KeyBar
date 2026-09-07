@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+Keine Funktionsaenderung. Korrektur der Release-Automatik.
+
 ## 1.0.1
 
 Keine Funktionsaenderung. Erste ueber den BigWigs-Packager gebaute Version -
