@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.1
+
+* Behoben: `ADDON_ACTION_BLOCKED` beim Abschliessen eines Schluessels. Die
+  Leiste baute sich mitten im Kampf neu auf und verschob dabei ihre
+  geschuetzten Buttons. Aktualisierungen, die im Kampf anfallen, werden jetzt
+  vorgemerkt und direkt nach Kampfende nachgeholt.
+* Verschieben und Einstellungen oeffnen sind im Kampf gesperrt statt einen
+  Fehler auszuloesen. Der Deckkraft-Regler wirkt weiterhin sofort.
+
 ## 1.3.0
 
 * **Der Schluessel in deiner Tasche wird angezeigt.** Der Dungeon, fuer den du

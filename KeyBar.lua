@@ -206,6 +206,13 @@ local DEFAULTS = {
 local cells = {}
 local bar
 
+-- Im Kampf sind Aenderungen an geschuetzten Rahmen gesperrt: verschieben,
+-- Groesse, ein- und ausblenden. Die Zellen sind sichere Buttons, und damit
+-- gilt das auch fuer die Leiste, an der sie haengen. Was im Kampf anfaellt,
+-- wird hier vorgemerkt und nach Kampfende nachgeholt.
+local pendingRefresh = false
+local pendingApply   = false
+
 -------------------------------------------------------------------------------
 -- Hilfsfunktionen
 -------------------------------------------------------------------------------
@@ -432,6 +439,7 @@ end
 -- Optionen. Beides haengt an jedem Element der Leiste, damit man nicht erst
 -- eine freie Stelle suchen muss.
 local function StartDrag()
+    if InCombatLockdown() then return end
     if not db().locked and IsShiftKeyDown() then
         bar:StartMoving()
         bar.isMoving = true
@@ -448,6 +456,7 @@ local function StopDrag()
 end
 
 local function OpenOptions()
+    if InCombatLockdown() then return end
     if not (Settings and Settings.OpenToCategory) then return end
     local category = ns.settingsCategory
     if category and category.GetID then
@@ -621,6 +630,11 @@ end
 
 local function Refresh()
     if not bar then return end
+    if InCombatLockdown() then
+        pendingRefresh = true
+        return
+    end
+    pendingRefresh = false
 
     local list = CollectRuns()
     if not list then
@@ -708,8 +722,15 @@ end
 
 local function ApplySettings()
     local settings = db()
-    bar:SetScale(settings.scale)
+    -- Die Deckkraft ist nicht geschuetzt und darf sofort greifen, damit der
+    -- Regler auch im Kampf eine sichtbare Wirkung hat.
     bar:SetAlpha(settings.alpha)
+    if InCombatLockdown() then
+        pendingApply = true
+        return
+    end
+    pendingApply = false
+    bar:SetScale(settings.scale)
     bar:ClearAllPoints()
     bar:SetPoint(settings.point, UIParent, settings.point, settings.x, settings.y)
     bar:EnableMouse(not settings.locked)
@@ -856,6 +877,8 @@ events:SetScript("OnEvent", function(_, event, arg1)
             UpdateAllTeleports()
         end
         if bar and pendingVisibility then ApplyVisibility() end
+        if bar and pendingApply then ApplySettings() end
+        if bar and pendingRefresh then Refresh() end
         return
 
     elseif event == "ADDON_LOADED" then
