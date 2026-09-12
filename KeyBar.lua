@@ -213,6 +213,15 @@ local bar
 local pendingRefresh = false
 local pendingApply   = false
 
+-- Pause: Im Kampf und in Instanzen werden die haeufigen Ereignisse abgemeldet.
+-- Die Leiste bleibt sichtbar, sie rechnet nur nicht mit. "populated" haelt
+-- fest, ob sie ueberhaupt schon einmal aufgebaut wurde -- beim Einloggen
+-- mitten in einer Instanz muss der erste Aufbau trotz Pause laufen.
+local inCombat   = false
+local inInstance = false
+local paused     = false
+local populated  = false
+
 -------------------------------------------------------------------------------
 -- Hilfsfunktionen
 -------------------------------------------------------------------------------
@@ -699,6 +708,7 @@ local function Refresh()
 
     Layout(#list)
     UpdateKeystone()
+    populated = true
 end
 
 -- Sichtbarkeit. Die Zellen sind geschuetzte Buttons; sie im Kampf einfach zu
@@ -854,37 +864,113 @@ end
 -------------------------------------------------------------------------------
 
 local events = CreateFrame("Frame")
+
+-- Die Ereignisse, die im Kampf und in Instanzen die Last erzeugen. Nur diese
+-- werden in der Pause abgemeldet. Die seltenen (Kartendaten, Abschluss eines
+-- Schluessels) bleiben angemeldet: Sie kosten nichts, und ohne sie koennte
+-- die Leiste beim Einloggen mitten in einer Instanz nie fertig aufgebaut werden.
+local BUSY_EVENTS = {
+    "SPELL_UPDATE_COOLDOWN",   -- feuert bei jedem Zauber
+    "SPELLS_CHANGED",
+    "BAG_UPDATE_DELAYED",      -- feuert bei jedem Loot
+}
+
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("CHALLENGE_MODE_MAPS_UPDATE")
 events:RegisterEvent("CHALLENGE_MODE_COMPLETED")
 events:RegisterEvent("MYTHIC_PLUS_CURRENT_AFFIX_UPDATE")
-events:RegisterEvent("BAG_UPDATE_DELAYED")
-events:RegisterEvent("SPELLS_CHANGED")
-events:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+events:RegisterEvent("PLAYER_REGEN_DISABLED")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
+for _, name in ipairs(BUSY_EVENTS) do
+    events:RegisterEvent(name)
+end
+
+-- Nur echte Instanzen. IsInInstance() meldet auch Garnisonen und aehnliche
+-- Bereiche mit dem Typ "none" -- dort gibt es keinen Grund zu pausieren.
+local function CurrentlyInInstance()
+    if not IsInInstance then return false end
+    local _, instanceType = IsInInstance()
+    return instanceType ~= nil and instanceType ~= "none"
+end
+
+-- Holt nach, was waehrend der Pause liegen blieb. Ein kompletter Neuaufbau
+-- nur, wenn einer vorgemerkt wurde -- sonst wuerde jedes Scharmuetzel in der
+-- offenen Welt die ganze Leiste neu bauen.
+local function CatchUp()
+    if not bar then return end
+    -- Merker vorher loeschen: Setzt ein Aufruf darin ihn neu, weil doch
+    -- gerade gesperrt ist, soll das erhalten bleiben.
+    pendingSecureUpdate = false
+    if pendingRefresh then
+        Refresh()                 -- deckt Teleporte und Schluessel mit ab
+    else
+        UpdateAllTeleports()      -- verpasst: SPELL_UPDATE_COOLDOWN, SPELLS_CHANGED
+        UpdateKeystone()          -- verpasst: BAG_UPDATE_DELAYED
+    end
+end
+
+local function SetPaused(state)
+    if state == paused then return end
+    paused = state
+    for _, name in ipairs(BUSY_EVENTS) do
+        if paused then
+            events:UnregisterEvent(name)
+        else
+            events:RegisterEvent(name)
+        end
+    end
+    if not paused then CatchUp() end
+end
+
+local function UpdatePause()
+    SetPaused(inCombat or inInstance)
+end
+
+-- Verzoegerter Neuaufbau. Der Timer kann in eine Pause hineinlaufen
+-- (Ladebildschirm, dann Instanz); darum wird erst beim Ausloesen geprueft.
+-- Ist die Leiste noch nie aufgebaut worden, laeuft er trotzdem.
+local function ScheduleRefresh(delay)
+    C_Timer.After(delay, function()
+        if paused and populated then
+            pendingRefresh = true
+        else
+            Refresh()
+        end
+    end)
+end
 
 events:SetScript("OnEvent", function(_, event, arg1)
     if event == "BAG_UPDATE_DELAYED" then
         -- Schluesselwechsel aendert nur die Markierung, nicht die Leiste.
         if bar then UpdateKeystone() end
-        return
 
     elseif event == "SPELLS_CHANGED" or event == "SPELL_UPDATE_COOLDOWN" then
         -- Nur Zauberstatus und Abklingzeit, nicht die ganze Leiste neu bauen.
         if bar then UpdateAllTeleports() end
-        return
+
+    elseif event == "PLAYER_REGEN_DISABLED" then
+        inCombat = true
+        UpdatePause()
 
     elseif event == "PLAYER_REGEN_ENABLED" then
-        -- Im Kampf blockierte Attribut-Aenderungen jetzt nachholen.
-        if bar and pendingSecureUpdate then
-            pendingSecureUpdate = false
-            UpdateAllTeleports()
-        end
+        inCombat = false
+        -- Was du selbst im Kampf eingestellt hast, greift sofort -- auch wenn
+        -- du noch in der Instanz bist und die Pause weiterlaeuft.
         if bar and pendingVisibility then ApplyVisibility() end
         if bar and pendingApply then ApplySettings() end
-        if bar and pendingRefresh then Refresh() end
-        return
+        UpdatePause()
+        -- Sicherheitsnetz: Wer schon im Kampf eingeloggt hat, bekam nie ein
+        -- PLAYER_REGEN_DISABLED -- die Pause begann also nie, und SetPaused
+        -- sieht keinen Wechsel. Vorgemerktes wird dann hier nachgeholt.
+        if not paused and (pendingRefresh or pendingSecureUpdate) then
+            CatchUp()
+        elseif not populated and pendingRefresh then
+            -- Eingeloggt im Kampf mitten in einer Instanz: Die Leiste ist noch
+            -- leer, und die Pause wuerde den Aufbau bis zum Verlassen
+            -- verhindern. Der erste Aufbau darf deshalb trotzdem laufen.
+            Refresh()
+        end
 
     elseif event == "ADDON_LOADED" then
         if arg1 ~= ADDON_NAME then return end
@@ -894,13 +980,19 @@ events:SetScript("OnEvent", function(_, event, arg1)
         if ns.SetupOptions then ns.SetupOptions() end
 
     elseif event == "PLAYER_ENTERING_WORLD" then
+        inInstance = CurrentlyInInstance()
+        -- Nach einem Verbindungsabbruch kann man direkt im Kampf landen.
+        if UnitAffectingCombat then
+            inCombat = UnitAffectingCombat("player") and true or false
+        end
         C_MythicPlus.RequestMapInfo()
         C_MythicPlus.RequestCurrentAffixes()
-        C_Timer.After(2, Refresh)
+        UpdatePause()
+        ScheduleRefresh(2)
 
     else
         -- Nach einem abgeschlossenen Lauf braucht der Server einen Moment,
         -- bis die neue Bestleistung abrufbar ist.
-        C_Timer.After(2, Refresh)
+        ScheduleRefresh(2)
     end
 end)

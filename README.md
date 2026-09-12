@@ -61,6 +61,13 @@ Game menu → Interface → AddOns → KeyBar, or shift + right click the bar:
 
 Position, size and all settings are saved per account.
 
+## Performance
+
+In combat and inside dungeons, raids, delves, scenarios, battlegrounds and
+arenas KeyBar pauses its background updates. The bar stays visible and the
+teleports stay clickable; whatever changed meanwhile is caught up when combat
+ends or you leave the instance.
+
 ## Languages
 
 English and German. Dungeon names always follow your client language; the

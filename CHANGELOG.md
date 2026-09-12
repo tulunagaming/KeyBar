@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0
+
+* **Weniger Last im Kampf und in Instanzen.** In Dungeons, Raids, Tiefen,
+  Szenarien, Schlachtfeldern und Arenen sowie in jedem Kampf pausiert KeyBar
+  seine Hintergrund-Aktualisierungen. Die Leiste bleibt sichtbar und die
+  Teleporte bleiben klickbar; beim Kampfende oder Verlassen der Instanz wird
+  nachgeholt, was in der Zwischenzeit angefallen ist.
+  Gemessen: 50 Zauber im Kampf loesten vorher 300 Abfragen aus, jetzt keine.
+* Das Ausblenden im Kampf bleibt eine Einstellung und ist davon unberuehrt.
+
 ## 1.3.2
 
 * Behoben: Nach jedem gewirkten Zauber lief eine kurze Sanduhr ueber alle
