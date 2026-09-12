@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.5
+
+* Die Fusszeile mit Autor und Version stand weiterhin in Ueberschriften-
+  Groesse. Die Schrift wird jetzt rekursiv gesucht und zusaetzlich einen
+  Frame spaeter nachgesetzt, weil die Vorlage sie vorher wieder ueberschreibt.
+
 ## 1.2.4
 
 * Beschreibung auf den aktuellen Stand gebracht: Umschalt-Bedienung,

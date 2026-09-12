@@ -60,18 +60,28 @@ function ns.SetupOptions()
         local init = CreateSettingsListSectionHeaderInitializer(text)
         if init.AddInitializer then
             init:AddInitializer(function(frame)
-                local label = frame.Title
-                if not label then
-                    for _, region in ipairs({ frame:GetRegions() }) do
-                        if region:GetObjectType() == "FontString" then
-                            label = region
-                            break
+                -- Die Vorlage legt ihre Schrift teils erst nach dieser
+                -- Rueckmeldung fest, deshalb ein Durchlauf im naechsten
+                -- Frame. Und gesucht wird rekursiv: der Text sitzt je nach
+                -- Client direkt im Rahmen oder in einem Kind davon.
+                local function Shrink(parent, depth)
+                    if not parent or depth > 3 then return end
+                    if parent.GetRegions then
+                        for _, region in ipairs({ parent:GetRegions() }) do
+                            if region.GetObjectType and region:GetObjectType() == "FontString" then
+                                region:SetFontObject(GameFontDisableSmall)
+                            end
+                        end
+                    end
+                    if parent.GetChildren then
+                        for _, child in ipairs({ parent:GetChildren() }) do
+                            Shrink(child, depth + 1)
                         end
                     end
                 end
-                if label then
-                    label:SetFontObject(GameFontDisableSmall)
-                end
+
+                Shrink(frame, 1)
+                C_Timer.After(0, function() Shrink(frame, 1) end)
             end)
         end
         layout:AddInitializer(init)
