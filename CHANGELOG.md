@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.0
+
+* **Der Schluessel in deiner Tasche wird angezeigt.** Der Dungeon, fuer den du
+  gerade einen Schluessel traegst, bekommt die Stufe als tuerkise Zahl in die
+  obere rechte Ecke. Kein eigenes Feld, keine zusaetzliche Zelle -- die Leiste
+  bleibt gleich breit.
+* Der Tooltip nennt die Stufe und vergleicht sie mit deiner Bestleistung in
+  diesem Dungeon: darueber, gleichauf oder darunter.
+* Die Anzeige wandert mit, sobald du einen anderen Schluessel bekommst.
+
 ## 1.2.6
 
 * Die Schluesselstufe sass direkt auf dem blauen Teleport-Streifen und wurde

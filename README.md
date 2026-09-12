@@ -13,6 +13,12 @@ timed run, the best overtime run, duration and dungeon score.
 Dungeons are sorted by key level, so the gaps in your season are obvious at a
 glance.
 
+## Your keystone
+
+The dungeon you are holding a keystone for shows its level as a small teal
+number in the top right corner. The tooltip compares that level with your best
+run there, so you can see at a glance whether the key would push your score.
+
 ## Teleports
 
 Clicking a dungeon teleports you there, if you have unlocked the teleport.

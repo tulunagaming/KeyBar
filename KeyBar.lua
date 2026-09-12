@@ -41,6 +41,10 @@ if GetLocale() == "deDE" then
     L["Shift + left click: move the bar."]  = "Umschalt + Linksklick: verschieben"
     L["Shift + right click: settings."]     = "Umschalt + Rechtsklick: Einstellungen"
     L["Position is locked."]                = "Position ist gesperrt."
+    L["Your keystone: +%d"]                 = "Dein Schluessel: +%d"
+    L["Above your best run here."]          = "Ueber deiner Bestleistung hier."
+    L["At your best run here."]             = "Auf Hoehe deiner Bestleistung hier."
+    L["Below your best run here."]          = "Unter deiner Bestleistung hier."
     L["hidden."]                         = "ausgeblendet."
     L["shown."]                          = "eingeblendet."
     L["position locked."]                = "Position gesperrt."
@@ -111,6 +115,22 @@ local TELEPORTS = {
     [587] = 1286809,   -- Murder Row
     [588] = 1286812,   -- Altar of Fangs
 }
+
+-------------------------------------------------------------------------------
+-- Der Schluessel in der Tasche. WoW gibt ihn direkt heraus, die Taschen
+-- muessen dafuer nicht durchsucht werden.
+-------------------------------------------------------------------------------
+local KEY_COLOR = { 0.16, 0.83, 0.94 }
+
+local function OwnedKeystone()
+    if not C_MythicPlus then return nil, nil end
+    local mapID = C_MythicPlus.GetOwnedKeystoneChallengeMapID
+              and C_MythicPlus.GetOwnedKeystoneChallengeMapID()
+    local level = C_MythicPlus.GetOwnedKeystoneLevel
+              and C_MythicPlus.GetOwnedKeystoneLevel()
+    if not mapID or not level or level <= 0 then return nil, nil end
+    return mapID, level
+end
 
 -- Zaubername statt ID: ein sicherer Button mit numerischem "spell"-Attribut
 -- laesst Blizzards Vorlage CastSpellByID() aufrufen, und das ist fuer Addons
@@ -304,6 +324,27 @@ local function AddUsageLines()
     GameTooltip:AddLine(L["Shift + right click: settings."], 0.6, 0.6, 0.6)
 end
 
+-- Der getragene Schluessel im Zusammenhang: interessant ist nicht die Stufe
+-- allein, sondern ob sie ueber der eigenen Bestleistung liegt.
+local function AddKeystoneLine(entry)
+    if not entry.keyLevel then return end
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine(string.format(L["Your keystone: +%d"], entry.keyLevel),
+        KEY_COLOR[1], KEY_COLOR[2], KEY_COLOR[3])
+
+    if entry.best and entry.best > 0 then
+        local text, r, g, b
+        if entry.keyLevel > entry.best then
+            text, r, g, b = L["Above your best run here."], 0.40, 1.00, 0.45
+        elseif entry.keyLevel == entry.best then
+            text, r, g, b = L["At your best run here."], 0.75, 0.75, 0.75
+        else
+            text, r, g, b = L["Below your best run here."], 0.70, 0.70, 0.70
+        end
+        GameTooltip:AddLine(text, r, g, b)
+    end
+end
+
 local function AddTeleportLine(entry)
     GameTooltip:AddLine(" ")
     if not TELEPORTS[entry.mapID] then
@@ -345,6 +386,7 @@ local function ShowCellTooltip(cell)
 
     if entry.best == 0 then
         GameTooltip:AddLine(L["Not run this season."], 0.7, 0.7, 0.7)
+        AddKeystoneLine(entry)
         AddTeleportLine(entry)
         AddUsageLines()
         GameTooltip:Show()
@@ -376,6 +418,7 @@ local function ShowCellTooltip(cell)
             0.7, 0.7, 0.7, r, g, b)
     end
 
+    AddKeystoneLine(entry)
     AddTeleportLine(entry)
     AddUsageLines()
     GameTooltip:Show()
@@ -447,6 +490,20 @@ local function CreateCell(index)
     cell.cooldown:SetAllPoints()
     cell.cooldown:SetDrawEdge(false)
 
+    -- Abzeichen fuer den getragenen Schluessel. Bewusst nur ein kleines
+    -- Schild statt eines Rahmens um die ganze Zelle: der Rahmen erschlug
+    -- das Dungeon-Bild darunter.
+    -- Die Zahlenschrift des Spiels: mit Kontur, deshalb auch ohne Kasten
+    -- dahinter auf hellen Dungeon-Bildern lesbar.
+    cell.keyBadge = cell:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+    cell.keyBadge:SetPoint("TOPRIGHT", -3, -15)
+    cell.keyBadge:SetTextColor(KEY_COLOR[1], KEY_COLOR[2], KEY_COLOR[3])
+    local fontPath = cell.keyBadge:GetFont()
+    if fontPath then
+        cell.keyBadge:SetFont(fontPath, 10, "OUTLINE")
+    end
+    cell.keyBadge:Hide()
+
     -- Duenner Streifen am unteren Rand: Teleport ist freigeschaltet.
     cell.portMark = cell:CreateTexture(nil, "OVERLAY", nil, 2)
     cell.portMark:SetPoint("BOTTOMLEFT", 1, 0)
@@ -471,7 +528,7 @@ local function CreateCell(index)
     cell.shade = cell:CreateTexture(nil, "OVERLAY", nil, 1)
     cell.shade:SetPoint("BOTTOMLEFT")
     cell.shade:SetPoint("BOTTOMRIGHT")
-    cell.shade:SetHeight(18)
+    cell.shade:SetHeight(15)
     cell.shade:SetColorTexture(0, 0, 0, 0.7)
 
     cell.level = cell:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -532,6 +589,24 @@ end
 local function UpdateAllTeleports()
     for _, cell in ipairs(cells) do
         if cell:IsShown() then ApplyTeleport(cell) end
+    end
+end
+
+local function ShowKeystoneMark(cell, level)
+    cell.keyBadge:SetShown(level ~= nil)
+    if level then
+        cell.keyBadge:SetText(tostring(level))
+    end
+end
+
+local function UpdateKeystone()
+    local mapID, level = OwnedKeystone()
+    for _, cell in ipairs(cells) do
+        if cell:IsShown() and cell.entry then
+            local mine = (cell.entry.mapID == mapID) and level or nil
+            cell.entry.keyLevel = mine
+            ShowKeystoneMark(cell, mine)
+        end
     end
 end
 
@@ -604,6 +679,7 @@ local function Refresh()
     end
 
     Layout(#list)
+    UpdateKeystone()
 end
 
 -- Sichtbarkeit. Die Zellen sind geschuetzte Buttons; sie im Kampf einfach zu
@@ -757,12 +833,18 @@ events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("CHALLENGE_MODE_MAPS_UPDATE")
 events:RegisterEvent("CHALLENGE_MODE_COMPLETED")
 events:RegisterEvent("MYTHIC_PLUS_CURRENT_AFFIX_UPDATE")
+events:RegisterEvent("BAG_UPDATE_DELAYED")
 events:RegisterEvent("SPELLS_CHANGED")
 events:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 
 events:SetScript("OnEvent", function(_, event, arg1)
-    if event == "SPELLS_CHANGED" or event == "SPELL_UPDATE_COOLDOWN" then
+    if event == "BAG_UPDATE_DELAYED" then
+        -- Schluesselwechsel aendert nur die Markierung, nicht die Leiste.
+        if bar then UpdateKeystone() end
+        return
+
+    elseif event == "SPELLS_CHANGED" or event == "SPELL_UPDATE_COOLDOWN" then
         -- Nur Zauberstatus und Abklingzeit, nicht die ganze Leiste neu bauen.
         if bar then UpdateAllTeleports() end
         return
