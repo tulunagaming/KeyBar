@@ -20,6 +20,8 @@ if GetLocale() == "deDE" then
     L["Hide in combat"]              = "Im Kampf ausblenden"
     L["When enabled the bar disappears while you are in combat and comes back afterwards."] =
         "Blendet die Leiste im Kampf aus und danach wieder ein."
+    L["Version %s by %s"]            = "Version %s von %s"
+    L["Version %s"]                  = "Version %s"
 end
 
 local function Apply()
@@ -34,7 +36,29 @@ function ns.SetupOptions()
         return
     end
 
-    local category = Settings.RegisterVerticalLayoutCategory("KeyBar")
+    local category, layout = Settings.RegisterVerticalLayoutCategory("KeyBar")
+
+    -- Autor und Version aus der .toc, damit beides nur an einer Stelle
+    -- gepflegt werden muss.
+    local function Meta(field)
+        if C_AddOns and C_AddOns.GetAddOnMetadata then
+            return C_AddOns.GetAddOnMetadata(ADDON_NAME, field)
+        end
+        return nil
+    end
+
+    local function AddHeader(text)
+        if layout and layout.AddInitializer and CreateSettingsListSectionHeaderInitializer then
+            layout:AddInitializer(CreateSettingsListSectionHeaderInitializer(text))
+        end
+    end
+
+    local version, author = Meta("Version"), Meta("Author")
+    if version and author then
+        AddHeader(string.format(L["Version %s by %s"], version, author))
+    elseif version then
+        AddHeader(string.format(L["Version %s"], version))
+    end
 
     -- --- Groesse ------------------------------------------------------------
     local scale = Settings.RegisterAddOnSetting(

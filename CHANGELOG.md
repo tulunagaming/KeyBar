@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2
+
+* Die Optionsseite nennt jetzt Version und Autor. Beides wird aus der .toc
+  gelesen, muss also nur an einer Stelle gepflegt werden.
+
 ## 1.2.1
 
 * Behoben: Ueber der Wertungsanzeige links liess sich die Leiste nicht
