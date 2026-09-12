@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.6
+
+* Die Schluesselstufe sass direkt auf dem blauen Teleport-Streifen und wurde
+  von ihm beruehrt. Sie steht jetzt drei Pixel hoeher.
+
 ## 1.2.5
 
 * Die Fusszeile mit Autor und Version stand weiterhin in Ueberschriften-

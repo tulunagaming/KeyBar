@@ -471,11 +471,13 @@ local function CreateCell(index)
     cell.shade = cell:CreateTexture(nil, "OVERLAY", nil, 1)
     cell.shade:SetPoint("BOTTOMLEFT")
     cell.shade:SetPoint("BOTTOMRIGHT")
-    cell.shade:SetHeight(15)
+    cell.shade:SetHeight(18)
     cell.shade:SetColorTexture(0, 0, 0, 0.7)
 
     cell.level = cell:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    cell.level:SetPoint("BOTTOM", 0, 1)
+    -- Etwas Luft nach unten, sonst sitzt die Stufe direkt auf dem blauen
+    -- Teleport-Streifen.
+    cell.level:SetPoint("BOTTOM", 0, 4)
 
     cell:SetScript("OnEnter", ShowCellTooltip)
     cell:SetScript("OnLeave", function() GameTooltip:Hide() end)
