@@ -7,6 +7,9 @@
 
 local ADDON_NAME, ns = ...
 
+-- Charakter und Realm des Autors.
+local AUTHOR = "Tuluna-Antonidas"
+
 -- Dieselbe Uebersetzungstabelle wie in KeyBar.lua: Schluessel ist der
 -- englische Text, fehlende Schluessel fallen auf sich selbst zurueck.
 local L = setmetatable({}, { __index = function(_, key) return key end })
@@ -20,8 +23,7 @@ if GetLocale() == "deDE" then
     L["Hide in combat"]              = "Im Kampf ausblenden"
     L["When enabled the bar disappears while you are in combat and comes back afterwards."] =
         "Blendet die Leiste im Kampf aus und danach wieder ein."
-    L["Version %s by %s"]            = "Version %s von %s"
-    L["Version %s"]                  = "Version %s"
+    L["Created by %s"]               = "Erstellt von %s"
 end
 
 local function Apply()
@@ -47,17 +49,32 @@ function ns.SetupOptions()
         return nil
     end
 
-    local function AddHeader(text)
-        if layout and layout.AddInitializer and CreateSettingsListSectionHeaderInitializer then
-            layout:AddInitializer(CreateSettingsListSectionHeaderInitializer(text))
+    -- Kleine Fusszeile. Die Kopfzeilen-Vorlage ist die einzige, die ohne
+    -- eigenes XML auskommt; ihre Schrift wird nachtraeglich verkleinert,
+    -- damit die Zeilen nicht groesser wirken als die Einstellungstexte.
+    local function AddFootnote(text)
+        if not (layout and layout.AddInitializer
+                and CreateSettingsListSectionHeaderInitializer) then
+            return
         end
-    end
-
-    local version, author = Meta("Version"), Meta("Author")
-    if version and author then
-        AddHeader(string.format(L["Version %s by %s"], version, author))
-    elseif version then
-        AddHeader(string.format(L["Version %s"], version))
+        local init = CreateSettingsListSectionHeaderInitializer(text)
+        if init.AddInitializer then
+            init:AddInitializer(function(frame)
+                local label = frame.Title
+                if not label then
+                    for _, region in ipairs({ frame:GetRegions() }) do
+                        if region:GetObjectType() == "FontString" then
+                            label = region
+                            break
+                        end
+                    end
+                end
+                if label then
+                    label:SetFontObject(GameFontDisableSmall)
+                end
+            end)
+        end
+        layout:AddInitializer(init)
     end
 
     -- --- Groesse ------------------------------------------------------------
@@ -98,6 +115,13 @@ function ns.SetupOptions()
     Settings.CreateCheckbox(category, hideInCombat,
         L["When enabled the bar disappears while you are in combat and comes back afterwards."])
     Settings.SetOnValueChangedCallback("KEYBAR_HIDE_IN_COMBAT", Apply)
+
+    -- --- Fusszeile ---------------------------------------------------------
+    AddFootnote(string.format(L["Created by %s"], AUTHOR))
+    local version = Meta("Version")
+    if version then
+        AddFootnote(string.format(L["Vers. %s"], version))
+    end
 
     Settings.RegisterAddOnCategory(category)
     ns.settingsCategory = category

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.3
+
+* Autor und Version stehen jetzt als kleine Fusszeile unter den Einstellungen
+  statt als Ueberschrift darueber.
+
 ## 1.2.2
 
 * Die Optionsseite nennt jetzt Version und Autor. Beides wird aus der .toc
