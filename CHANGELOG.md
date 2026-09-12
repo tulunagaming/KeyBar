@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.4
+
+* Beschreibung auf den aktuellen Stand gebracht: Umschalt-Bedienung,
+  Optionsseite, Deckkraft und der Befehl `/keybar alpha` fehlten dort noch.
+
 ## 1.2.3
 
 * Autor und Version stehen jetzt als kleine Fusszeile unter den Einstellungen
