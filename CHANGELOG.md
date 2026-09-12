@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2
+
+* Behoben: Nach jedem gewirkten Zauber lief eine kurze Sanduhr ueber alle
+  Dungeon-Felder. Das war der globale Cooldown, dem die Teleporte unterliegen.
+  Angezeigt wird jetzt nur noch die echte Abklingzeit des Teleports.
+
 ## 1.3.1
 
 * Behoben: `ADDON_ACTION_BLOCKED` beim Abschliessen eines Schluessels. Die

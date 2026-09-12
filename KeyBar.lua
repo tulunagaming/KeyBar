@@ -585,7 +585,12 @@ local function ApplyTeleport(cell)
 
     if entry.known and C_Spell and C_Spell.GetSpellCooldown then
         local info = C_Spell.GetSpellCooldown(spellID)
-        if info and info.startTime and info.duration and info.duration > 0 then
+        -- Teleporte unterliegen dem globalen Cooldown. Ohne diesen Filter
+        -- lief nach jedem gewirkten Zauber eine 1,5-Sekunden-Sanduhr ueber
+        -- alle Felder. Echte Teleport-Abklingzeiten dauern Stunden, alles
+        -- unter ein paar Sekunden ist also nie gemeint.
+        local isGCD = info and (info.isOnGCD or (info.duration or 0) <= 2)
+        if info and info.startTime and info.duration and info.duration > 0 and not isGCD then
             cell.cooldown:SetCooldown(info.startTime, info.duration)
         else
             cell.cooldown:SetCooldown(0, 0)
