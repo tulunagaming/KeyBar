@@ -19,7 +19,7 @@
 -- /keybar reset  Position und Groesse zuruecksetzen
 -------------------------------------------------------------------------------
 
-local ADDON_NAME = ...
+local ADDON_NAME, ns = ...
 
 -------------------------------------------------------------------------------
 -- Localization. Keys are the English strings; missing keys fall back to the
@@ -50,8 +50,19 @@ if GetLocale() == "deDE" then
     L["sorting: by level."]              = "Sortierung: nach Stufe."
     L["sorting: by name."]               = "Sortierung: nach Name."
     L["reset."]                          = "zurueckgesetzt."
-    L["Commands: /keybar | lock | scale <number> | sort | reset"] =
-        "Befehle: /keybar | lock | scale <Zahl> | sort | reset"
+    L["Commands: /keybar | lock | scale <number> | alpha <number> | sort | reset"] =
+        "Befehle: /keybar | lock | scale <Zahl> | alpha <Zahl> | sort | reset"
+    L["opacity set to %d%%."]            = "Deckkraft auf %d%% gesetzt."
+    L["Please give a value between 20 and 100, e.g. /keybar alpha 80"] =
+        "Bitte einen Wert zwischen 20 und 100 angeben, z. B. /keybar alpha 80"
+    L["Size"]                            = "Groesse"
+    L["How large the bar is drawn."]     = "Wie gross die Leiste gezeichnet wird."
+    L["Opacity"]                         = "Deckkraft"
+    L["How opaque the bar is. Lower values let the game show through."] =
+        "Wie deckend die Leiste ist. Niedrigere Werte lassen das Spiel durchscheinen."
+    L["Hide in combat"]                  = "Im Kampf ausblenden"
+    L["When enabled the bar disappears while you are in combat and comes back afterwards."] =
+        "Blendet die Leiste im Kampf aus und danach wieder ein"
 end
 
 local CELL_SIZE     = 42
@@ -99,6 +110,18 @@ local TELEPORTS = {
     [587] = 1286809,   -- Murder Row
     [588] = 1286812,   -- Altar of Fangs
 }
+
+-- Zaubername statt ID: ein sicherer Button mit numerischem "spell"-Attribut
+-- laesst Blizzards Vorlage CastSpellByID() aufrufen, und das ist fuer Addons
+-- gesperrt (ADDON_ACTION_FORBIDDEN). Ueber /cast <Name> geht es sauber.
+local function SpellName(spellID)
+    if not spellID then return nil end
+    if C_Spell and C_Spell.GetSpellInfo then
+        local info = C_Spell.GetSpellInfo(spellID)
+        if info and info.name then return info.name end
+    end
+    return nil
+end
 
 local function TeleportKnown(spellID)
     if not spellID then return false end
@@ -152,8 +175,10 @@ local DEFAULTS = {
     x       = 0,
     y       = 220,
     scale   = 1.1,
+    alpha   = 1.0,
     locked  = false,
     hidden  = false,
+    hideInCombat = false,
     sort    = "level",   -- "level" oder "name"
 }
 
@@ -414,13 +439,19 @@ local function ApplyTeleport(cell)
     entry.spellID = spellID
     entry.known   = TeleportKnown(spellID)
 
+    local name = entry.known and SpellName(spellID) or nil
+
     if InCombatLockdown() then
         pendingSecureUpdate = true
-    elseif entry.known then
-        cell:SetAttribute("type", "spell")
-        cell:SetAttribute("spell", spellID)
+    elseif name then
+        cell:SetAttribute("type", "macro")
+        cell:SetAttribute("macrotext", "/cast " .. name)
     else
+        -- Auch den Namen koennen wir kurz nach dem Login noch nicht kennen;
+        -- dann bleibt der Button vorerst ohne Aktion und SPELLS_CHANGED
+        -- traegt ihn nach.
         cell:SetAttribute("type", nil)
+        cell:SetAttribute("macrotext", nil)
         cell:SetAttribute("spell", nil)
     end
 
@@ -515,15 +546,43 @@ local function Refresh()
     Layout(#list)
 end
 
+-- Sichtbarkeit. Die Zellen sind geschuetzte Buttons; sie im Kampf einfach zu
+-- verstecken waere eine gesperrte Aktion. Deshalb uebernimmt das der sichere
+-- State-Driver von Blizzard, der genau dafuer gedacht ist.
+local pendingVisibility = false
+
+local function ApplyVisibility()
+    local settings = db()
+
+    if InCombatLockdown() then
+        pendingVisibility = true
+        return
+    end
+    pendingVisibility = false
+
+    UnregisterStateDriver(bar, "visibility")
+    if settings.hidden then
+        bar:Hide()
+    elseif settings.hideInCombat then
+        RegisterStateDriver(bar, "visibility", "[combat] hide; show")
+    else
+        bar:Show()
+    end
+end
+
 local function ApplySettings()
     local settings = db()
     bar:SetScale(settings.scale)
+    bar:SetAlpha(settings.alpha)
     bar:ClearAllPoints()
     bar:SetPoint(settings.point, UIParent, settings.point, settings.x, settings.y)
     bar:EnableMouse(not settings.locked)
     bar:SetMovable(not settings.locked)
-    if settings.hidden then bar:Hide() else bar:Show() end
+    ApplyVisibility()
 end
+
+-- Damit die Optionsseite nach jeder Aenderung dasselbe anwenden kann.
+ns.ApplySettings = function() if bar then ApplySettings() end end
 
 local function CreateBar()
     bar = CreateFrame("Frame", "KeyBarFrame", UIParent, "BackdropTemplate")
@@ -602,6 +661,16 @@ SlashCmdList["KEYBAR"] = function(input)
             Print(L["Please give a value between 0.5 and 3, e.g. /keybar scale 1.2"])
         end
 
+    elseif command == "alpha" then
+        local value = tonumber(argument)
+        if value and value >= 20 and value <= 100 then
+            settings.alpha = value / 100
+            ApplySettings()
+            Print(string.format(L["opacity set to %d%%."], value))
+        else
+            Print(L["Please give a value between 20 and 100, e.g. /keybar alpha 80"])
+        end
+
     elseif command == "sort" then
         settings.sort = (settings.sort == "level") and "name" or "level"
         Refresh()
@@ -610,11 +679,12 @@ SlashCmdList["KEYBAR"] = function(input)
     elseif command == "reset" then
         settings.point, settings.x, settings.y = DEFAULTS.point, DEFAULTS.x, DEFAULTS.y
         settings.scale, settings.locked, settings.hidden = DEFAULTS.scale, false, false
+        settings.alpha, settings.hideInCombat = DEFAULTS.alpha, DEFAULTS.hideInCombat
         ApplySettings()
         Print(L["reset."])
 
     else
-        Print(L["Commands: /keybar | lock | scale <number> | sort | reset"])
+        Print(L["Commands: /keybar | lock | scale <number> | alpha <number> | sort | reset"])
     end
 end
 
@@ -644,6 +714,7 @@ events:SetScript("OnEvent", function(_, event, arg1)
             pendingSecureUpdate = false
             UpdateAllTeleports()
         end
+        if bar and pendingVisibility then ApplyVisibility() end
         return
 
     elseif event == "ADDON_LOADED" then
@@ -651,6 +722,7 @@ events:SetScript("OnEvent", function(_, event, arg1)
         db()
         CreateBar()
         ApplySettings()
+        if ns.SetupOptions then ns.SetupOptions() end
 
     elseif event == "PLAYER_ENTERING_WORLD" then
         C_MythicPlus.RequestMapInfo()

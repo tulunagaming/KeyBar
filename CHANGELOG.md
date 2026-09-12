@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0
+
+* Optionsseite unter Spiel -> Interface -> AddOns -> KeyBar
+  mit Reglern fuer Groesse und Deckkraft sowie "Im Kampf ausblenden"
+* Neuer Befehl `/keybar alpha <20-100>`
+* Behoben: Der Teleport-Klick loeste ADDON_ACTION_FORBIDDEN aus
+  (CastSpellByID ist fuer Addons gesperrt). Der Button benutzt jetzt
+  einen Makrotext mit dem Zaubernamen.
+
 ## 1.0.3
 
 Keine Funktionsaenderung. KeyBar erscheint ab jetzt auch auf CurseForge.
