@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1
+
+* Behoben: Ueber der Wertungsanzeige links liess sich die Leiste nicht
+  verschieben. Dort lag ein eigener Rahmen fuer den Tooltip, der das Ziehen
+  nicht weitergereicht hat.
+
 ## 1.2.0
 
 * Verschieben jetzt mit **Umschalt + Linksklick** -- auch ueber den Dungeon-

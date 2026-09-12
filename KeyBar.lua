@@ -667,6 +667,13 @@ local function CreateBar()
 
     bar.scoreHover = CreateFrame("Frame", nil, bar)
     bar.scoreHover:SetAllPoints(bar.score)
+    -- Ohne das hier waere die Wertungsanzeige ein totes Feld: der Tooltip
+    -- erschiene, das Ziehen aber ginge ins Leere.
+    bar.scoreHover:EnableMouse(true)
+    bar.scoreHover:RegisterForDrag("LeftButton")
+    bar.scoreHover:SetScript("OnDragStart", StartDrag)
+    bar.scoreHover:SetScript("OnDragStop", StopDrag)
+    bar.scoreHover:SetScript("OnMouseUp", HandleModifiedClick)
     bar.scoreHover:SetScript("OnEnter", function(self)
         AnchorTooltip(self)
         GameTooltip:AddLine("KeyBar", 1, 0.82, 0)
