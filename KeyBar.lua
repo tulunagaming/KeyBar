@@ -38,8 +38,9 @@ if GetLocale() == "deDE" then
     L["Time the dungeon on level 10 to earn it."] =
         "Dafuer den Dungeon auf Stufe 10 im Zeitlimit abschliessen."
     L["Mythic+ score for this season."]  = "Mythic+ Gesamtwertung dieser Saison."
-    L["Drag to move."]                   = "Ziehen zum Verschieben."
-    L["/keybar for more options."]       = "/keybar fuer weitere Optionen."
+    L["Shift + left click: move the bar."]  = "Umschalt + Linksklick: verschieben"
+    L["Shift + right click: settings."]     = "Umschalt + Rechtsklick: Einstellungen"
+    L["Position is locked."]                = "Position ist gesperrt."
     L["hidden."]                         = "ausgeblendet."
     L["shown."]                          = "eingeblendet."
     L["position locked."]                = "Position gesperrt."
@@ -292,6 +293,17 @@ end
 -- Tooltip
 -------------------------------------------------------------------------------
 
+-- Steht in jedem Tooltip, damit die Bedienung nicht erraten werden muss.
+local function AddUsageLines()
+    GameTooltip:AddLine(" ")
+    if db().locked then
+        GameTooltip:AddLine(L["Position is locked."], 0.5, 0.5, 0.5)
+    else
+        GameTooltip:AddLine(L["Shift + left click: move the bar."], 0.6, 0.6, 0.6)
+    end
+    GameTooltip:AddLine(L["Shift + right click: settings."], 0.6, 0.6, 0.6)
+end
+
 local function AddTeleportLine(entry)
     GameTooltip:AddLine(" ")
     if not TELEPORTS[entry.mapID] then
@@ -334,6 +346,7 @@ local function ShowCellTooltip(cell)
     if entry.best == 0 then
         GameTooltip:AddLine(L["Not run this season."], 0.7, 0.7, 0.7)
         AddTeleportLine(entry)
+        AddUsageLines()
         GameTooltip:Show()
         return
     end
@@ -364,12 +377,48 @@ local function ShowCellTooltip(cell)
     end
 
     AddTeleportLine(entry)
+    AddUsageLines()
     GameTooltip:Show()
 end
 
 -------------------------------------------------------------------------------
 -- Aufbau der Leiste
 -------------------------------------------------------------------------------
+
+-- Umschalt + Linksklick verschiebt, Umschalt + Rechtsklick oeffnet die
+-- Optionen. Beides haengt an jedem Element der Leiste, damit man nicht erst
+-- eine freie Stelle suchen muss.
+local function StartDrag()
+    if not db().locked and IsShiftKeyDown() then
+        bar:StartMoving()
+        bar.isMoving = true
+    end
+end
+
+local function StopDrag()
+    if not bar.isMoving then return end
+    bar.isMoving = false
+    bar:StopMovingOrSizing()
+    local point, _, _, x, y = bar:GetPoint()
+    local settings = db()
+    settings.point, settings.x, settings.y = point, x, y
+end
+
+local function OpenOptions()
+    if not (Settings and Settings.OpenToCategory) then return end
+    local category = ns.settingsCategory
+    if category and category.GetID then
+        Settings.OpenToCategory(category:GetID())
+    else
+        Settings.OpenToCategory("KeyBar")
+    end
+end
+
+local function HandleModifiedClick(_, button)
+    if button == "RightButton" and IsShiftKeyDown() then
+        OpenOptions()
+    end
+end
 
 local function CreateCell(index)
     -- SecureActionButtonTemplate: das Wirken eines Zaubers ist geschuetzt und
@@ -380,6 +429,15 @@ local function CreateCell(index)
     -- Beide Varianten, damit der Klick unabhaengig von der Einstellung
     -- "Aktion bei Tastendruck ausloesen" ankommt.
     cell:RegisterForClicks("AnyUp", "AnyDown")
+    cell:RegisterForDrag("LeftButton")
+    cell:SetScript("OnDragStart", StartDrag)
+    cell:SetScript("OnDragStop", StopDrag)
+    cell:SetScript("PostClick", HandleModifiedClick)
+
+    -- Mit gedrueckter Umschalttaste soll nicht geportet werden, sonst
+    -- kaeme man beim Verschieben versehentlich im Dungeon heraus.
+    cell:SetAttribute("shift-type1", "none")
+    cell:SetAttribute("shift-type2", "none")
 
     cell.icon = cell:CreateTexture(nil, "ARTWORK")
     cell.icon:SetAllPoints()
@@ -598,15 +656,9 @@ local function CreateBar()
     bar:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.8)
 
     bar:RegisterForDrag("LeftButton")
-    bar:SetScript("OnDragStart", function(self)
-        if not db().locked then self:StartMoving() end
-    end)
-    bar:SetScript("OnDragStop", function(self)
-        self:StopMovingOrSizing()
-        local point, _, _, x, y = self:GetPoint()
-        local settings = db()
-        settings.point, settings.x, settings.y = point, x, y
-    end)
+    bar:SetScript("OnDragStart", StartDrag)
+    bar:SetScript("OnDragStop", StopDrag)
+    bar:SetScript("OnMouseUp", HandleModifiedClick)
 
     bar.score = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     bar.score:SetPoint("LEFT", bar, "LEFT", PADDING, 0)
@@ -619,9 +671,7 @@ local function CreateBar()
         AnchorTooltip(self)
         GameTooltip:AddLine("KeyBar", 1, 0.82, 0)
         GameTooltip:AddLine(L["Mythic+ score for this season."], 0.8, 0.8, 0.8)
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine(L["Drag to move."], 0.6, 0.6, 0.6)
-        GameTooltip:AddLine(L["/keybar for more options."], 0.6, 0.6, 0.6)
+        AddUsageLines()
         GameTooltip:Show()
     end)
     bar.scoreHover:SetScript("OnLeave", function() GameTooltip:Hide() end)

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+* Verschieben jetzt mit **Umschalt + Linksklick** -- auch ueber den Dungeon-
+  Feldern, nicht mehr nur auf freier Flaeche. Ein versehentliches Verrutschen
+  beim Teleportieren ist damit ausgeschlossen.
+* **Umschalt + Rechtsklick** oeffnet die Einstellungen.
+* Beide Hinweise stehen jetzt in jedem Tooltip.
+
 ## 1.1.0
 
 * Optionsseite unter Spiel -> Interface -> AddOns -> KeyBar
