@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.1
+
+* **Senkrechte Leiste** (Wunsch eines Nutzers): In den Optionen (Spiel ->
+  Interface -> AddOns -> KeyBar) laesst sich die Leiste hochkant stellen. Die
+  Wertung sitzt dann oben, die Dungeons laufen nach unten, und die Tooltips
+  erscheinen seitlich statt darueber. Praktisch am linken oder rechten
+  Bildschirmrand. Umschalten im Kampf wird wie gewohnt nachgeholt.
+
 ## 1.4.0
 
 * **Weniger Last im Kampf und in Instanzen.** In Dungeons, Raids, Tiefen,

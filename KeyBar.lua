@@ -74,6 +74,13 @@ local CELL_SIZE     = 42
 local CELL_GAP      = 4
 local PADDING       = 8
 local HEADER_WIDTH  = 46
+-- Senkrecht steht die Wertung oben statt links; sie braucht dort weniger
+-- Platz als die 46 Punkte Breite daneben.
+local HEADER_HEIGHT = 22
+-- Schriftgroesse der Wertung in der senkrechten Leiste: zwischen der
+-- normalen (12) und der grossen (16). 14 ist das Groesste, bei dem eine
+-- vierstellige Wertung noch sicher in die 50 Punkte Breite passt.
+local SCORE_SIZE_VERTICAL = 14
 
 -------------------------------------------------------------------------------
 -- Englische Dungeon-Kuerzel, geschluesselt nach ChallengeMode-Map-ID.
@@ -201,6 +208,7 @@ local DEFAULTS = {
     hidden  = false,
     hideInCombat = false,
     sort    = "level",   -- "level" oder "name"
+    vertical = false,    -- false = waagerecht, true = senkrecht
 }
 
 local cells = {}
@@ -383,10 +391,19 @@ local function AnchorTooltip(cell)
     GameTooltip:SetOwner(cell, "ANCHOR_NONE")
     GameTooltip:ClearAllPoints()
 
-    local _, centerY = bar:GetCenter()
+    local centerX, centerY = bar:GetCenter()
+    local screenWidth  = UIParent:GetWidth() or 0
     local screenHeight = UIParent:GetHeight() or 0
 
-    if centerY and screenHeight > 0 and centerY > screenHeight / 2 then
+    if db().vertical then
+        -- Senkrechte Leiste: der Tooltip gehoert daneben, sonst verdeckt er
+        -- die Zellen darueber oder darunter. Seite nach freiem Platz waehlen.
+        if centerX and screenWidth > 0 and centerX > screenWidth / 2 then
+            GameTooltip:SetPoint("TOPRIGHT", bar, "TOPLEFT", -TOOLTIP_GAP, 0)
+        else
+            GameTooltip:SetPoint("TOPLEFT", bar, "TOPRIGHT", TOOLTIP_GAP, 0)
+        end
+    elseif centerY and screenHeight > 0 and centerY > screenHeight / 2 then
         GameTooltip:SetPoint("TOP", bar, "BOTTOM", 0, -TOOLTIP_GAP)
     else
         GameTooltip:SetPoint("BOTTOM", bar, "TOP", 0, TOOLTIP_GAP)
@@ -507,6 +524,7 @@ local function CreateCell(index)
     cell.cooldown = CreateFrame("Cooldown", nil, cell, "CooldownFrameTemplate")
     cell.cooldown:SetAllPoints()
     cell.cooldown:SetDrawEdge(false)
+    cell.cdTextStyled = false
 
     -- Abzeichen fuer den getragenen Schluessel. Bewusst nur ein kleines
     -- Schild statt eines Rahmens um die ganze Zelle: der Rahmen erschlug
@@ -564,6 +582,27 @@ end
 -- Verknuepft eine Zelle mit ihrem Teleport-Zauber. Im Kampf sind Aenderungen
 -- an sicheren Buttons gesperrt; dann merken wir uns das und holen es nach,
 -- sobald der Kampf vorbei ist.
+-- Countdown-Zahl der Abklingzeit dezenter: halbe Groesse, blassgrau. Die Zahl
+-- ist ein FontString, den Blizzards Cooldown-Rahmen selbst anlegt -- teils
+-- erst beim ersten echten SetCooldown. Deshalb wird nach jedem Setzen
+-- geprueft, aber nur einmal pro Zelle umgestellt, sonst halbierte sich die
+-- Schrift bei jeder Aktualisierung erneut.
+local function StyleCooldownText(cell)
+    if cell.cdTextStyled then return end
+    local cd = cell.cooldown
+    if not (cd and cd.GetRegions) then return end
+    for _, region in ipairs({ cd:GetRegions() }) do
+        if region.GetObjectType and region:GetObjectType() == "FontString" then
+            local path, size, flags = region:GetFont()
+            if path and size and size > 0 then
+                region:SetFont(path, math.max(6, math.floor(size * 0.5 + 0.5)), flags)
+                region:SetTextColor(0.62, 0.62, 0.62, 0.85)
+                cell.cdTextStyled = true
+            end
+        end
+    end
+end
+
 local pendingSecureUpdate = false
 
 local function ApplyTeleport(cell)
@@ -601,6 +640,7 @@ local function ApplyTeleport(cell)
         local isGCD = info and (info.isOnGCD or (info.duration or 0) <= 2)
         if info and info.startTime and info.duration and info.duration > 0 and not isGCD then
             cell.cooldown:SetCooldown(info.startTime, info.duration)
+            StyleCooldownText(cell)
         else
             cell.cooldown:SetCooldown(0, 0)
         end
@@ -634,12 +674,15 @@ local function UpdateKeystone()
 end
 
 local function Layout(count)
-    -- Drei Polster: links vom Score, zwischen Score und erster Zelle, und
-    -- rechts hinter der letzten Zelle. Mit nur zweien sass die letzte Zelle
+    -- Drei Polster: vor der Wertung, zwischen Wertung und erster Zelle, und
+    -- hinter der letzten Zelle. Mit nur zweien sass die letzte Zelle
     -- am Rand fest und das Bild wirkte unsymmetrisch.
-    local width = PADDING * 3 + HEADER_WIDTH
-                  + count * CELL_SIZE + math.max(0, count - 1) * CELL_GAP
-    bar:SetSize(width, CELL_SIZE + PADDING * 2)
+    local lane = count * CELL_SIZE + math.max(0, count - 1) * CELL_GAP
+    if db().vertical then
+        bar:SetSize(CELL_SIZE + PADDING * 2, PADDING * 3 + HEADER_HEIGHT + lane)
+    else
+        bar:SetSize(PADDING * 3 + HEADER_WIDTH + lane, CELL_SIZE + PADDING * 2)
+    end
 end
 
 local function Refresh()
@@ -667,12 +710,20 @@ local function Refresh()
         cell.entry = entry
 
         cell:ClearAllPoints()
-        if index == 1 then
-            -- Bewusst am Rahmen selbst verankert, nicht an bar.score: sichere
-            -- Buttons duerfen nicht an Regionen (FontStrings, Texturen) haengen.
-            cell:SetPoint("LEFT", bar, "LEFT", PADDING * 2 + HEADER_WIDTH, 0)
+        -- Bewusst am Rahmen selbst verankert, nicht an bar.score: sichere
+        -- Buttons duerfen nicht an Regionen (FontStrings, Texturen) haengen.
+        if db().vertical then
+            if index == 1 then
+                cell:SetPoint("TOP", bar, "TOP", 0, -(PADDING * 2 + HEADER_HEIGHT))
+            else
+                cell:SetPoint("TOP", cells[index - 1], "BOTTOM", 0, -CELL_GAP)
+            end
         else
-            cell:SetPoint("LEFT", cells[index - 1], "RIGHT", CELL_GAP, 0)
+            if index == 1 then
+                cell:SetPoint("LEFT", bar, "LEFT", PADDING * 2 + HEADER_WIDTH, 0)
+            else
+                cell:SetPoint("LEFT", cells[index - 1], "RIGHT", CELL_GAP, 0)
+            end
         end
 
         cell.icon:SetTexture(entry.texture or 134400)
@@ -735,6 +786,10 @@ local function ApplyVisibility()
     end
 end
 
+-- Zuletzt angewandte Ausrichtung: wechselt sie, muessen die Zellen neu
+-- verankert werden -- bei Groesse oder Deckkraft waere das Verschwendung.
+local appliedVertical = nil
+
 local function ApplySettings()
     local settings = db()
     -- Die Deckkraft ist nicht geschuetzt und darf sofort greifen, damit der
@@ -746,11 +801,32 @@ local function ApplySettings()
     end
     pendingApply = false
     bar:SetScale(settings.scale)
+    -- Wertung: senkrecht oben mittig, waagerecht links neben den Zellen.
+    -- Hochkant ist nur die Zellenbreite da -- vierstellige Wertungen passen in
+    -- der grossen Schrift nicht hinein und wurden zu "33..." gekuerzt.
+    bar.score:ClearAllPoints()
+    if settings.vertical then
+        -- Gleiche Schriftart wie waagerecht, nur kleiner gesetzt: so bleibt
+        -- das Bild einheitlich, ohne dass die Zahl gekuerzt wird.
+        bar.score:SetFontObject("GameFontNormalLarge")
+        local file, _, flags = bar.score:GetFont()
+        if file then bar.score:SetFont(file, SCORE_SIZE_VERTICAL, flags) end
+        bar.score:SetPoint("TOP", bar, "TOP", 0, -PADDING + 2)
+        bar.score:SetWidth(CELL_SIZE + PADDING)
+    else
+        bar.score:SetFontObject("GameFontNormalLarge")
+        bar.score:SetPoint("LEFT", bar, "LEFT", PADDING, 0)
+        bar.score:SetWidth(HEADER_WIDTH)
+    end
     bar:ClearAllPoints()
     bar:SetPoint(settings.point, UIParent, settings.point, settings.x, settings.y)
     bar:EnableMouse(not settings.locked)
     bar:SetMovable(not settings.locked)
     ApplyVisibility()
+    if appliedVertical ~= settings.vertical then
+        appliedVertical = settings.vertical
+        Refresh()
+    end
 end
 
 -- Damit die Optionsseite nach jeder Aenderung dasselbe anwenden kann.

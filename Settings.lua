@@ -23,6 +23,9 @@ if GetLocale() == "deDE" then
     L["Hide in combat"]              = "Im Kampf ausblenden"
     L["When enabled the bar disappears while you are in combat and comes back afterwards."] =
         "Blendet die Leiste im Kampf aus und danach wieder ein."
+    L["Vertical bar"]                = "Senkrechte Leiste"
+    L["Stands the bar upright: the score sits on top and the dungeons run downwards. Useful at the screen edge."] =
+        "Stellt die Leiste hochkant: die Wertung steht oben, die Dungeons laufen nach unten. Praktisch am Bildschirmrand."
     L["Created by %s"]               = "Erstellt von %s"
 end
 
@@ -125,6 +128,15 @@ function ns.SetupOptions()
     Settings.CreateCheckbox(category, hideInCombat,
         L["When enabled the bar disappears while you are in combat and comes back afterwards."])
     Settings.SetOnValueChangedCallback("KEYBAR_HIDE_IN_COMBAT", Apply)
+
+    -- --- Senkrechte Leiste --------------------------------------------------
+    local vertical = Settings.RegisterAddOnSetting(
+        category, "KEYBAR_VERTICAL", "vertical", KeyBarDB,
+        Settings.VarType.Boolean, L["Vertical bar"], false)
+
+    Settings.CreateCheckbox(category, vertical,
+        L["Stands the bar upright: the score sits on top and the dungeons run downwards. Useful at the screen edge."])
+    Settings.SetOnValueChangedCallback("KEYBAR_VERTICAL", Apply)
 
     -- --- Fusszeile ---------------------------------------------------------
     AddFootnote(string.format(L["Created by %s"], AUTHOR))
